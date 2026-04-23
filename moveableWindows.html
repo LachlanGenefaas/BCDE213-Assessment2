@@ -22,12 +22,6 @@
             overflow: hidden;
             background: #171212;
         }
-        canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
     </style>
 </head>
 </head>
@@ -40,10 +34,9 @@ kaplay({
   font: "happy",
   background: "#4a3052",
   maxFPS: 60,
-  width: 1200,
-  height: 720,
-  letterbox: false
-  // or letterbox: true
+  width: 1280,
+  height: 720
+  //letterbox: true, // or letterbox: true
 });
 
 // virtual:/assets.js
@@ -97,20 +90,97 @@ function getHolding() {
   return get("moveable").find((obj) => obj.isHovering());
 }
 scene("game", () => {
+  flash(BLACK, 0.5);
+  let window = createWindow(300, 200, new vec2(20, 20));
+  window.use(offscreen({ destroy: true }));
   addWelcomeText();
-  let square = add([
-    rect(50, 50),
-    color("#888888"),
-    pos(50, 50),
-    "button",
-    area()
+  let a = add([
+    // Bezel and main object
+    rect(900, 660),
+    pos(20, 20),
+    color("#222222")
   ]);
-  let window1 = createWindow(230, 200, new vec2(710, 100));
-  let app2 = createWindow(230, 200, new vec2(410, 100));
+  a.add([rect(860, 620), pos(20, 20), color("#222266")]);
+  a.add([rect(860, 30), pos(20, 610), color("#552233")]);
+  a.add([rect(200, 100), pos(350, 660), color("#262626")]);
+  let browserIcon = a.add([
+    rect(50, 50),
+    pos(60, 50)
+  ]);
+  let emailIcon = a.add([
+    rect(50, 50),
+    pos(60, 150)
+  ]);
+  a.add([rect(660, 540), pos(190, 50), color("#FF2222")]);
+  add([
+    rect(300, 620),
+    pos(940, 30),
+    color("#AAAAAA")
+  ]);
+  add([
+    rect(5e4, 3e4),
+    pos(900, 0),
+    color("#AAAAAA"),
+    area(),
+    body({ isStatic: true }),
+    opacity(0.1),
+    z(1)
+  ]);
+  add([
+    rect(1200, 8e3),
+    pos(0, 460),
+    color("#AAAAAA"),
+    area(),
+    body({ isStatic: true }),
+    opacity(0.1),
+    z(1)
+  ]);
+  let checkButton = add([
+    rect(60, 100),
+    body(),
+    area(),
+    pos(1220, 100),
+    color("#222222"),
+    "checkButton",
+    z(4)
+  ]);
+  checkButton.paused = true;
+  checkButton.add([
+    rect(300, 200),
+    area(),
+    pos(60, -50),
+    color("#22222f"),
+    z(2)
+  ]);
+  checkButton.add([
+    rect(120, 180),
+    area(),
+    pos(80, -40),
+    color("#EE2222"),
+    "No",
+    z(3)
+  ]);
+  checkButton.add([
+    rect(120, 180),
+    area(),
+    pos(220, -40),
+    color("#22EE22"),
+    "Yes",
+    z(3)
+  ]);
+  let isCheckOpen = false;
+  onClick("checkButton", (obj) => {
+    if (isCheckOpen) {
+      obj.pos = new vec2(1220, 100);
+      isCheckOpen = false;
+    } else {
+      obj.pos = new vec2(900, 100);
+      isCheckOpen = true;
+    }
+  });
   let dragging = false;
   let dragOffset = vec2(0, 0);
   let currentHolding;
-  onClick("button", (obj) => createWindow(230, 200, new vec2(110, 100)));
   onMousePress(() => {
     currentHolding = getHolding();
     if (currentHolding) {
@@ -146,35 +216,6 @@ scene("game", () => {
   onMouseRelease(() => {
     dragging = false;
   });
-  let checkButton = add([
-    rect(40, 80),
-    body(),
-    area(),
-    pos(100, 100),
-    color("#222222"),
-    "checkButton"
-  ]);
-  checkButton.paused = true;
-  checkButton.add([
-    rect(300, 200),
-    area(),
-    pos(40, -60),
-    color("#22222f")
-  ]);
-  checkButton.add([
-    rect(120, 180),
-    area(),
-    pos(60, -50),
-    color("#EE2222"),
-    "No"
-  ]);
-  checkButton.add([
-    rect(120, 180),
-    area(),
-    pos(200, -50),
-    color("#22EE22"),
-    "Yes"
-  ]);
 });
 
 // virtual:/scenes/test.js
@@ -230,6 +271,106 @@ scene("test", () => {
         currentLine = 0;
       }
       startLine();
+    }
+  });
+});
+
+// virtual:/scenes/WindowTest.js
+function getHolding2() {
+  return get("moveable").find((obj) => obj.isHovering());
+}
+scene("WindowTest", () => {
+  addWelcomeText();
+  let square = add([
+    rect(50, 50),
+    color("#888888"),
+    pos(50, 50),
+    "button",
+    area()
+  ]);
+  let window1 = createWindow(230, 200, new vec2(710, 100));
+  let app2 = createWindow(230, 200, new vec2(410, 100));
+  onClick("button", (obj) => createWindow(230, 200, new vec2(110, 100)));
+  let dragging = false;
+  let dragOffset = vec2(0, 0);
+  let currentHolding;
+  onMousePress(() => {
+    currentHolding = getHolding2();
+    if (currentHolding) {
+      get("moveable").forEach((obj) => {
+        if (obj != currentHolding) {
+          obj.paused = true;
+          obj.z = 0;
+          obj.get("*").forEach((child) => {
+            child.z = 0;
+          });
+        }
+      });
+      currentHolding.paused = false;
+      currentHolding.z = 1;
+      currentHolding.get("*").forEach((child) => {
+        child.z = 1;
+      });
+      const m = mousePos();
+      dragging = true;
+      dragOffset = vec2(
+        m.x - currentHolding.pos.x,
+        m.y - currentHolding.pos.y
+      );
+    }
+  });
+  onMouseMove(() => {
+    if (dragging) {
+      const m = mousePos();
+      currentHolding.pos.x = m.x - dragOffset.x;
+      currentHolding.pos.y = m.y - dragOffset.y;
+    }
+  });
+  onMouseRelease(() => {
+    dragging = false;
+  });
+  let checkButton = add([
+    rect(60, 100),
+    body(),
+    area(),
+    pos(1220, 100),
+    color("#222222"),
+    "checkButton",
+    z(4)
+  ]);
+  checkButton.paused = true;
+  checkButton.add([
+    rect(300, 200),
+    area(),
+    pos(60, -50),
+    color("#22222f"),
+    z(2)
+  ]);
+  checkButton.add([
+    rect(120, 180),
+    area(),
+    pos(80, -40),
+    color("#EE2222"),
+    "No",
+    z(3)
+  ]);
+  checkButton.add([
+    rect(120, 180),
+    area(),
+    pos(220, -40),
+    color("#22EE22"),
+    "Yes",
+    z(3)
+  ]);
+  let isCheckOpen = false;
+  onClick("checkButton", (obj) => {
+    if (isCheckOpen) {
+      obj.pos = new vec2(1220, 100);
+      isCheckOpen = false;
+      debug.log("?");
+    } else {
+      obj.pos = new vec2(900, 100);
+      isCheckOpen = true;
     }
   });
 });
