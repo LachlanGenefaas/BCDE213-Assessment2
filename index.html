@@ -22,6 +22,12 @@
             overflow: hidden;
             background: #171212;
         }
+        canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
     </style>
 </head>
 </head>
@@ -182,24 +188,24 @@ loadHappy();
 function createWindow(x, y, position) {
   let window = add([
     //sprite("square"),
-    area(),
     rect(x, 20),
     scale(1),
     pos(position.x, position.y),
     "moveable",
     body(),
     color("#444444"),
-    z(1)
+    z(1),
+    area()
   ]);
   let windowBody = window.add([
     // has to be first child for boundary
     rect(x, y - 20),
     pos(0, 20),
     color("#555555"),
-    body(),
-    // to avoid clickthrough // doesnt work
+    //body(), // to avoid clickthrough // doesnt work
     z(1),
-    "windowBody"
+    "windowBody",
+    area()
   ]);
   let closeButton = window.add([
     // X
@@ -224,7 +230,6 @@ function createWindow(x, y, position) {
     color("#555555"),
     z(1),
     area(),
-    "closeButton",
     "hideButton"
   ]);
   window.add([
@@ -306,6 +311,19 @@ function addEmail(window, image, subject, emailText, index) {
 }
 
 // virtual:/scenes/game.js
+function closeWindow(window, pos2, type) {
+  if (type == 0) {
+    window.hidden = true;
+    window.opacity = 0;
+  } else {
+    tween(1, 0.01, 0.1, (p) => window.scaleTo(p), easings.easeInOut);
+    tween(window.pos, pos2, 0.1, (p) => window.pos = p, easings.easeInOut);
+    wait(0.1, () => {
+      window.opacity = 0;
+      window.hidden = true;
+    });
+  }
+}
 function getHolding() {
   return get("moveable").find((obj) => obj.isHovering());
 }
@@ -321,6 +339,9 @@ function addQuestion(notepad, questionText, index) {
   ]);
 }
 scene("game", () => {
+  let oldBrowserPos = vec2(160, 100);
+  let oldEmailPos = new vec2(140, 100);
+  let windowHidePos = new vec2(35, 660);
   let browserOpen = false;
   let emailOpen = false;
   let questionList = [];
@@ -331,26 +352,22 @@ scene("game", () => {
   emailWindow.hidden = true;
   browserWindow.add([sprite("browserBackground"), scale(0.668), pos(10, 30), z(1)]);
   emailWindow.add([sprite("emailBackground"), scale(0.6), pos(10, 30), z(1)]);
-  addEmail(emailWindow, "mark", "hello", "i finally got ts to work", 1);
-  addEmail(emailWindow, "mark", "hello 2", "u stoopid", 2);
-  addEmail(emailWindow, "purple", "info", "This is probably how i'll make objectives for the game and give info", 3);
-  addEmail(emailWindow, "emailIcon", "hello 3", "no", 4);
+  addEmail(emailWindow, "mark", "hello", "i finally got this to work", 1);
+  addEmail(emailWindow, "purple", "info", "This is probably how i'll make objectives for the game and give info", 2);
+  addEmail(emailWindow, "emailIcon", "hello 3", "no", 3);
   emailWindow.get("1")[0].hidden = false;
   let a = add([rect(920, 680), pos(10, 10), color("#222222")]);
-  a.add([
-    sprite("purple", { width: 880, height: 640 }),
-    pos(20, 20),
-    shader("blobGradient", () => ({
-      u_time: time(),
-      u_speed: 0.1,
-      u_blobCount: 8,
-      u_size: 0.3,
-      u_motion: 0.8
-    })),
-    shader("crt", () => ({
-      u_time: time()
-    }))
-  ]);
+  let screen = a.add([sprite("purple", { width: 880, height: 640 }), pos(20, 20)]);
+  screen.use(shader("blobGradient", () => ({
+    u_time: time(),
+    u_speed: 0.1,
+    u_blobCount: 8,
+    u_size: 0.3,
+    u_motion: 0.8
+  })));
+  screen.use(shader("crt", () => ({
+    u_time: time()
+  })));
   a.add([rect(880, 30), pos(20, 630), color("#552233")]);
   a.add([rect(200, 100), pos(350, 680), color("#262626")]);
   let browserIcon = a.add([rect(50, 50), pos(40, 50), area(), "browserIcon"]);
@@ -363,6 +380,9 @@ scene("game", () => {
     }
     browserOpen = false;
     browserWindow.hidden = false;
+    browserWindow.opacity = 1;
+    tween(0.01, 1, 0.19, (p) => browserWindow.scaleTo(p), easings.easeInOut);
+    tween(browserWindow.pos, oldBrowserPos, 0.1, (p) => browserWindow.pos = p, easings.easeInOut);
     get("moveable").forEach((obj2) => {
       if (obj2 != browserWindow) {
         obj2.paused = true;
@@ -377,17 +397,20 @@ scene("game", () => {
       child.z = 2;
     });
   });
-  onClick("emailIcon", (obj) => {
+  onClick("emailIcon", () => {
     if (emailOpen) {
       return;
     }
     emailOpen = false;
     emailWindow.hidden = false;
-    get("moveable").forEach((obj2) => {
-      if (obj2 != emailWindow) {
-        obj2.paused = true;
-        obj2.z = 1;
-        obj2.get("*").forEach((child) => {
+    emailWindow.opacity = 1;
+    tween(0.01, 1, 0.19, (p) => emailWindow.scaleTo(p), easings.easeInOut);
+    tween(emailWindow.pos, oldEmailPos, 0.1, (p) => emailWindow.pos = p, easings.easeInOut);
+    get("moveable").forEach((obj) => {
+      if (obj != emailWindow) {
+        obj.paused = true;
+        obj.z = 1;
+        obj.get("*").forEach((child) => {
           child.z = 1;
         });
       }
@@ -458,7 +481,10 @@ scene("game", () => {
     dragging = false;
   });
   onClick("closeButton", (obj) => {
-    obj.parent.hidden = true;
+    closeWindow(obj.parent, windowHidePos, 0);
+  });
+  onClick("hideButton", (obj) => {
+    closeWindow(obj.parent, windowHidePos, 1);
   });
 });
 
