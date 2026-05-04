@@ -326,14 +326,53 @@ function addQuestion(notepad, questionText, index, spacing) {
   notepad.add([
     area(),
     body(),
-    text(questionText, { size: 14, width: 280, lineSpacing: 7 }),
+    text(questionText, { size: 14, width: 270, lineSpacing: 7 }),
     color("#000000"),
     pos(150, 120 + spacing),
     `${index}`,
-    `question`
+    "question"
   ]);
 }
+function typeText(textBox, fullText, type) {
+  if (textBox.is("busy")) {
+    return;
+  }
+  textBox.tag("busy");
+  let charIndex = 0;
+  let finishedLoading = false;
+  textBox.text = "";
+  if (type == 1) {
+    wait(rand(0, 0.92), () => {
+      textBox.text = ".";
+    });
+    wait(rand(1, 2.2), () => {
+      textBox.text = "..";
+    });
+    wait(rand(2.3, 3), () => {
+      textBox.text = "...";
+    });
+    wait(3.4 + fullText.length / 50, () => {
+      textBox.text = "";
+      finishedLoading = true;
+    });
+  } else {
+    finishedLoading = true;
+  }
+  onUpdate(() => {
+    if (!finishedLoading) {
+      return;
+    }
+    if (charIndex < fullText.length) {
+      charIndex++;
+      textBox.text = fullText.slice(0, charIndex);
+    } else {
+      textBox.untag("busy");
+    }
+  });
+}
 scene("game", () => {
+  var isTyping = false;
+  var typing = false;
   let oldBrowserPos = vec2(160, 100);
   let oldEmailPos = new vec2(140, 100);
   let windowHidePos = new vec2(35, 660);
@@ -358,6 +397,10 @@ scene("game", () => {
     color("#333333"),
     outline(4)
   ]);
+  let answerTextBox = browserWindow.add([
+    text("", { width: 460, lineSpacing: 7, size: 16 }),
+    pos(90, 170)
+  ]);
   browserWindow.add([
     rect(430, 70),
     pos(80, 400),
@@ -368,9 +411,11 @@ scene("game", () => {
     rect(50, 70),
     pos(530, 400),
     color("#336633"),
-    outline(4)
+    outline(4),
+    area(),
+    "submitQuestionButton"
   ]);
-  let textBox = browserWindow.add([
+  let questionTextBox = browserWindow.add([
     pos(84, 404),
     text("Click a question from the notepad to choose what to ask the AI", { width: 440, size: 16, lineSpacing: 6 })
   ]);
@@ -492,13 +537,13 @@ scene("game", () => {
     });
     obj.use(color("#bbbbbb"));
   });
-  let notepad = add([sprite("notepad", { width: 510, height: 600 }), pos(850, -20), color("#AAAAAA")]);
+  let notepad = add([sprite("notepad", { width: 510, height: 600 }), pos(850, -20), color("#AAAAAA"), "notepad"]);
   notepad.add([text("Questions", { size: 18 }), color("#000000"), pos(206, 78)]);
-  addQuestion(notepad, "What is your name?", 1, 20);
-  addQuestion(notepad, "How do you feel about blah blah blah?", 2, 60);
-  addQuestion(notepad, "What is your opinion on country?", 3, 120);
   onClick("question", (question) => {
-    textBox.text = question.text;
+    if (!browserOpen || typing) {
+      return;
+    }
+    questionTextBox.text = question.text;
   });
   let decider = add([
     rect(300, 150),
@@ -520,10 +565,27 @@ scene("game", () => {
     "greenButton"
   ]);
   onClick("redButton", (obj) => {
-    debug.log("red clicked");
+    if (!aiActive) {
+      return;
+    }
+    wait(rand(0.1, 0.3), () => {
+      if (answerTextBox.is("busy")) {
+        return;
+      }
+      typeText(answerTextBox, "NO I AM REAL", typing, 0);
+      answerTextBox.use(color("#FFCCCC"));
+      wait(0.5, () => {
+        answerTextBox.text = "";
+        aiIcon.use(opacity(0));
+        aiActive = false;
+        questionTextBox.text = "";
+      });
+    });
   });
   onClick("greenButton", (obj) => {
-    debug.log("green clicked");
+    if (!aiActive) {
+      return;
+    }
   });
   let dragging = false;
   let dragOffset = vec2(0, 0);
@@ -573,6 +635,32 @@ scene("game", () => {
     obj.parent == browserWindow ? browserOpen = false : emailOpen = false;
     closeWindow(obj.parent, windowHidePos, 1);
   });
+  let aiActive = false;
+  let currentAI = 1;
+  onClick("submitQuestionButton", (obj) => {
+    if (!aiActive) {
+      return;
+    }
+    if (answerTextBox.is("busy")) {
+      return;
+    }
+    let currentQuestion = questionTextBox.text;
+    switch (currentAI) {
+      case 1:
+        if (currentQuestion == notepad.children[1].text) {
+          typeText(answerTextBox, "No, i dislike AI", 1);
+        }
+        if (currentQuestion == notepad.children[2].text) {
+          typeText(answerTextBox, "The best topping for pizza is obviously pineapple", 1);
+        }
+        break;
+      case 2:
+        debug.log("impossible");
+        break;
+      default:
+        typeText(answerTextBox, "I do not know how to respond to that", typing);
+    }
+  });
   onLoad(() => {
     wait(2, () => {
       noEmailText.destroy();
@@ -587,64 +675,10 @@ scene("game", () => {
         newEmailCircle.hidden = false;
       }
       aiIcon.use(sprite("aiicon", { width: 80, height: 80 }));
+      aiActive = true;
+      addQuestion(notepad, "Do you like AI?", 1, 20);
+      addQuestion(notepad, "What is the best topping on pizza?", 1, 60);
     });
-  });
-});
-
-// virtual:/scenes/test.js
-scene("test", () => {
-  const boxWidth = 500;
-  const boxHeight = 120;
-  const dialogueBox = add([
-    rect(boxWidth, boxHeight),
-    pos(100, 300),
-    color(20, 20, 20),
-    outline(2)
-  ]);
-  const textObj = add([
-    text("", { size: 16, width: boxWidth - 20, lineSpacing: 8 }),
-    pos(120, 320)
-    // {
-    //     maxWidth: boxWidth - 300,
-    // }
-  ]);
-  const lines = [
-    "Hello there! (SPACEBAR)",
-    "This project is for a school assessment that will be submitted fashionably late.",
-    "There is no tutorial as I do not care to make one.",
-    "Press space to start."
-  ];
-  let currentLine = 0;
-  let charIndex = 0;
-  let typing = true;
-  function startLine() {
-    textObj.text = "";
-    charIndex = 0;
-    typing = true;
-  }
-  startLine();
-  onUpdate(() => {
-    if (!typing) return;
-    const fullText = lines[currentLine];
-    if (charIndex < fullText.length) {
-      charIndex++;
-      textObj.text = fullText.slice(0, charIndex);
-    } else {
-      typing = false;
-    }
-  });
-  onKeyPress("space", () => {
-    if (typing) {
-      textObj.text = lines[currentLine];
-      typing = false;
-    } else {
-      currentLine++;
-      if (currentLine >= lines.length) {
-        go("game");
-        currentLine = 0;
-      }
-      startLine();
-    }
   });
 });
 
